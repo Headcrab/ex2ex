@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+CONFIGURATION.md
+config.examples.yaml
+
+# Build artifacts
+ex2ex
+*.exe
+
+# Data directories
+uploads/
+output/
+
+# Development files
+.env
+.env.local
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Scripts
+start.sh
+start.ps1
+Makefile
+
+# Docker
+docker-compose.yml
+Dockerfile
+
+# Go
+*.test
+*.out
+go.work

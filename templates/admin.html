@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Администрирование - Excel Transformer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-link, .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .nav-link {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .nav-link:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #388e3c;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #666;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .mapping-item, .sheet-item {
+            background: #f8f9ff;
+            border: 2px solid #e8eaff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .mapping-header, .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .mapping-fields, .sheet-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .remove-btn {
+            background: #ffebee;
+            color: #c62828;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .remove-btn:hover {
+            background: #ffcdd2;
+        }
+
+        .add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 2px dashed #90caf9;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .add-btn:hover {
+            background: #bbdefb;
+            border-color: #1565c0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .help-text {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .yaml-preview {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #666;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: #333;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ Администрирование</h1>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 Главная</a>
+                <button class="btn btn-secondary" onclick="loadConfig()">🔄 Обновить</button>
+                <button class="btn btn-success" onclick="saveConfig()">💾 Сохранить</button>
+            </div>
+        </div>
+
+        <div id="message" class="message"></div>
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <div>Загрузка конфигурации...</div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('editor')">📝 Визуальный редактор</button>
+            <button class="tab" onclick="switchTab('yaml')">📄 YAML редактор</button>
+            <button class="tab" onclick="switchTab('preview')">👁️ Предпросмотр</button>
+        </div>
+
+        <div id="editor-tab" class="tab-content active">
+            <!-- Output Filename -->
+            <div class="section">
+                <div class="section-title">
+                    <span>📁 Имя результирующего файла</span>
+                </div>
+                <div class="form-group">
+                    <label for="outputFilename">Имя файла:</label>
+                    <input type="text" id="outputFilename" placeholder="result.xlsx">
+                    <div class="help-text">К имени автоматически добавляется timestamp</div>
+                </div>
+            </div>
+
+            <!-- Mappings -->
+            <div class="section">
+                <div class="section-title">
+                    <span>🔀 Правила маппинга</span>
+                    <button class="add-btn" onclick="addMapping()">➕ Добавить правило</button>
+                </div>
+                <div id="mappings"></div>
+            </div>
+
+            <!-- Output Sheets -->
+            <div class="section">
+                <div class="section-title">
+                    <span>📊 Выходные листы</span>
+                    <button class="add-btn" onclick="addSheet()">➕ Добавить лист</button>
+                </div>
+                <div id="sheets"></div>
+            </div>
+        </div>
+
+        <div id="yaml-tab" class="tab-content">
+            <div class="section">
+                <div class="section-title">
+                    <span>📄 Прямое редактирование YAML</span>
+                </div>
+                <div class="form-group">
+                    <textarea id="yamlEditor" style="min-height: 400px; font-family: 'Courier New', monospace;"></textarea>
+                    <div class="help-text">Редактируйте YAML напрямую. Будьте внимательны с синтаксисом!</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="preview-tab" class="tab-content">
+            <div class="section">
+                <div class="section-title">
+                    <span>👁️ Предпросмотр конфигурации</span>
+                </div>
+                <div class="yaml-preview" id="yamlPreview"></div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="resetForm()">↩️ Отменить изменения</button>
+            <button class="btn btn-danger" onclick="if(confirm('Вы уверены?')) resetToDefault()">🗑️ Сброс к примеру</button>
+            <button class="btn btn-success" onclick="saveConfig()">💾 Сохранить конфигурацию</button>
+        </div>
+    </div>
+
+    <script>
+        let currentConfig = null;
+        let mappingCounter = 0;
+        let sheetCounter = 0;
+
+        // Load configuration on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+        });
+
+        function switchTab(tabName) {
+            // Update tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+
+            // Update preview if needed
+            if (tabName === 'preview' || tabName === 'yaml') {
+                updatePreview();
+            }
+        }
+
+        async function loadConfig() {
+            showLoading(true);
+            hideMessage();
+
+            try {
+                const response = await fetch('/api/config');
+                if (!response.ok) throw new Error('Failed to load config');
+                
+                currentConfig = await response.json();
+                renderConfig();
+                showMessage('Конфигурация загружена успешно', 'success');
+            } catch (error) {
+                showMessage('Ошибка загрузки конфигурации: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderConfig() {
+            if (!currentConfig) return;
+
+            // Output filename
+            document.getElementById('outputFilename').value = currentConfig.output_filename || '';
+
+            // Mappings
+            const mappingsContainer = document.getElementById('mappings');
+            mappingsContainer.innerHTML = '';
+            mappingCounter = 0;
+            
+            if (currentConfig.mappings && currentConfig.mappings.length > 0) {
+                currentConfig.mappings.forEach(mapping => {
+                    addMapping(mapping);
+                });
+            }
+
+            // Sheets
+            const sheetsContainer = document.getElementById('sheets');
+            sheetsContainer.innerHTML = '';
+            sheetCounter = 0;
+            
+            if (currentConfig.output_sheets && currentConfig.output_sheets.length > 0) {
+                currentConfig.output_sheets.forEach(sheet => {
+                    addSheet(sheet);
+                });
+            }
+
+            // YAML editor
+            document.getElementById('yamlEditor').value = configToYAML(currentConfig);
+        }
+
+        function addMapping(mapping = null) {
+            const id = mappingCounter++;
+            const container = document.getElementById('mappings');
+            
+            const div = document.createElement('div');
+            div.className = 'mapping-item';
+            div.id = `mapping-${id}`;
+            div.innerHTML = `
+                <div class="mapping-header">
+                    <h3 style="color: #666; font-size: 16px;">Правило #${id + 1}</h3>
+                    <button class="remove-btn" onclick="removeMapping(${id})">🗑️ Удалить</button>
+                </div>
+                <div class="mapping-fields">
+                    <div class="form-group">
+                        <label>Источник (Sheet!Cell or Range):</label>
+                        <input type="text" id="mapping-source-${id}" placeholder="Sheet1!A1:C10" value="${mapping?.source || ''}">
+                        <div class="help-text">Например: Sheet1!A1 или Sheet1!A1:C10</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Назначение (Sheet!Cell):</label>
+                        <input type="text" id="mapping-dest-${id}" placeholder="Result!A1" value="${mapping?.destination || ''}">
+                        <div class="help-text">Например: Result!A1</div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(div);
+        }
+
+        function removeMapping(id) {
+            const element = document.getElementById(`mapping-${id}`);
+            if (element) element.remove();
+        }
+
+        function addSheet(sheet = null) {
+            const id = sheetCounter++;
+            const container = document.getElementById('sheets');
+            
+            const div = document.createElement('div');
+            div.className = 'sheet-item';
+            div.id = `sheet-${id}`;
+            div.innerHTML = `
+                <div class="sheet-header">
+                    <h3 style="color: #666; font-size: 16px;">Лист #${id + 1}</h3>
+                    <button class="remove-btn" onclick="removeSheet(${id})">🗑️ Удалить</button>
+                </div>
+                <div class="sheet-fields">
+                    <div class="form-group">
+                        <label>Имя листа:</label>
+                        <input type="text" id="sheet-name-${id}" placeholder="Result" value="${sheet?.name || ''}">
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="sheet-create-${id}" ${sheet?.create_if_not_exists ? 'checked' : ''}>
+                            <label for="sheet-create-${id}" style="margin: 0;">Создать, если не существует</label>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(div);
+        }
+
+        function removeSheet(id) {
+            const element = document.getElementById(`sheet-${id}`);
+            if (element) element.remove();
+        }
+
+        function collectConfig() {
+            const config = {
+                output_filename: document.getElementById('outputFilename').value,
+                mappings: [],
+                output_sheets: []
+            };
+
+            // Collect mappings
+            document.querySelectorAll('[id^="mapping-"]').forEach(item => {
+                if (!item.id.includes('source') && !item.id.includes('dest')) {
+                    const id = item.id.split('-')[1];
+                    const source = document.getElementById(`mapping-source-${id}`)?.value;
+                    const dest = document.getElementById(`mapping-dest-${id}`)?.value;
+                    
+                    if (source && dest) {
+                        config.mappings.push({
+                            source: source,
+                            destination: dest
+                        });
+                    }
+                }
+            });
+
+            // Collect sheets
+            document.querySelectorAll('[id^="sheet-"]').forEach(item => {
+                if (!item.id.includes('name') && !item.id.includes('create')) {
+                    const id = item.id.split('-')[1];
+                    const name = document.getElementById(`sheet-name-${id}`)?.value;
+                    const create = document.getElementById(`sheet-create-${id}`)?.checked;
+                    
+                    if (name) {
+                        config.output_sheets.push({
+                            name: name,
+                            create_if_not_exists: create
+                        });
+                    }
+                }
+            });
+
+            return config;
+        }
+
+        async function saveConfig() {
+            hideMessage();
+            
+            let config;
+            const activeTab = document.querySelector('.tab.active').textContent;
+            
+            if (activeTab.includes('YAML')) {
+                // Save from YAML editor
+                try {
+                    const yamlText = document.getElementById('yamlEditor').value;
+                    config = parseYAML(yamlText);
+                } catch (error) {
+                    showMessage('Ошибка парсинга YAML: ' + error.message, 'error');
+                    return;
+                }
+            } else {
+                // Save from visual editor
+                config = collectConfig();
+            }
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save config');
+                }
+
+                currentConfig = config;
+                renderConfig();
+                showMessage('✅ Конфигурация успешно сохранена!', 'success');
+            } catch (error) {
+                showMessage('❌ Ошибка сохранения: ' + error.message, 'error');
+            }
+        }
+
+        function resetForm() {
+            if (confirm('Отменить все изменения?')) {
+                renderConfig();
+                showMessage('Изменения отменены', 'success');
+            }
+        }
+
+        async function resetToDefault() {
+            const defaultConfig = {
+                output_filename: "result.xlsx",
+                mappings: [
+                    { source: "Sheet1!A1", destination: "Result!A1" },
+                    { source: "Sheet1!B2", destination: "Result!B2" },
+                    { source: "Sheet1!A1:C10", destination: "Result!D1" }
+                ],
+                output_sheets: [
+                    { name: "Result", create_if_not_exists: true }
+                ]
+            };
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(defaultConfig)
+                });
+
+                if (!response.ok) throw new Error('Failed to reset config');
+
+                currentConfig = defaultConfig;
+                renderConfig();
+                showMessage('✅ Конфигурация сброшена к примеру', 'success');
+            } catch (error) {
+                showMessage('❌ Ошибка: ' + error.message, 'error');
+            }
+        }
+
+        function updatePreview() {
+            const config = collectConfig();
+            const yaml = configToYAML(config);
+            document.getElementById('yamlPreview').textContent = yaml;
+            document.getElementById('yamlEditor').value = yaml;
+        }
+
+        function configToYAML(config) {
+            let yaml = `output_filename: "${config.output_filename}"\n\n`;
+            yaml += `mappings:\n`;
+            
+            if (config.mappings && config.mappings.length > 0) {
+                config.mappings.forEach(m => {
+                    yaml += `  - source: "${m.source}"\n`;
+                    yaml += `    destination: "${m.destination}"\n`;
+                });
+            }
+            
+            yaml += `\noutput_sheets:\n`;
+            if (config.output_sheets && config.output_sheets.length > 0) {
+                config.output_sheets.forEach(s => {
+                    yaml += `  - name: "${s.name}"\n`;
+                    yaml += `    create_if_not_exists: ${s.create_if_not_exists}\n`;
+                });
+            }
+            
+            return yaml;
+        }
+
+        function parseYAML(yamlText) {
+            // Простой парсер YAML (для production лучше использовать библиотеку)
+            const lines = yamlText.split('\n');
+            const config = {
+                output_filename: '',
+                mappings: [],
+                output_sheets: []
+            };
+            
+            let currentSection = null;
+            let currentItem = null;
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                
+                if (trimmed.startsWith('output_filename:')) {
+                    // Берем все после первого двоеточия
+                    config.output_filename = trimmed.substring('output_filename:'.length).trim().replace(/['"]/g, '');
+                } else if (trimmed === 'mappings:') {
+                    currentSection = 'mappings';
+                } else if (trimmed === 'output_sheets:') {
+                    currentSection = 'sheets';
+                } else if (trimmed.startsWith('- source:') && currentSection === 'mappings') {
+                    // Берем все после "- source:" чтобы сохранить диапазоны типа A1:B10
+                    const sourceValue = trimmed.substring('- source:'.length).trim().replace(/['"]/g, '');
+                    currentItem = { source: sourceValue };
+                } else if (trimmed.startsWith('destination:') && currentItem && currentSection === 'mappings') {
+                    // Берем все после "destination:"
+                    currentItem.destination = trimmed.substring('destination:'.length).trim().replace(/['"]/g, '');
+                    config.mappings.push(currentItem);
+                    currentItem = null;
+                } else if (trimmed.startsWith('- name:') && currentSection === 'sheets') {
+                    currentItem = { name: trimmed.substring('- name:'.length).trim().replace(/['"]/g, '') };
+                } else if (trimmed.startsWith('create_if_not_exists:') && currentItem && currentSection === 'sheets') {
+                    currentItem.create_if_not_exists = trimmed.substring('create_if_not_exists:'.length).trim() === 'true';
+                    config.output_sheets.push(currentItem);
+                    currentItem = null;
+                }
+            });
+            
+            return config;
+        }
+
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = `message ${type} show`;
+            
+            setTimeout(() => {
+                hideMessage();
+            }, 5000);
+        }
+
+        function hideMessage() {
+            document.getElementById('message').classList.remove('show');
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+    </script>
+</body>
+</html>

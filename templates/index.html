@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Transformer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .admin-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .admin-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.drag-over {
+            border-color: #764ba2;
+            background: #e8eaff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 14px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            color: #2e7d32;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #c8e6c9;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            color: #2e7d32;
+            font-size: 14px;
+        }
+
+        .result-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .error-message {
+            margin-top: 20px;
+            padding: 15px;
+            background: #ffebee;
+            border-radius: 10px;
+            color: #c62828;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .reset-btn {
+            margin-top: 15px;
+            background: #f5f5f5;
+            color: #666;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .reset-btn:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <a href="/admin" class="admin-link">⚙️ Администрирование</a>
+    
+    <div class="container">
+        <h1>📊 Excel Transformer</h1>
+        <p class="subtitle">Загрузите Excel файл для обработки</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Перетащите файл сюда</div>
+            <div class="upload-hint">или нажмите для выбора файла (.xlsx, .xls)</div>
+        </div>
+
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-name" id="fileName"></div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status-text" id="statusText">Загрузка...</div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="result-section" id="resultSection">
+            <div style="text-align: center;">
+                <p style="color: #1565c0; margin-bottom: 15px; font-weight: 500;">✅ Файл успешно обработан!</p>
+                <a href="#" id="downloadLink" class="download-btn">📥 Скачать результат</a>
+                <br>
+                <button class="reset-btn" onclick="resetForm()">Загрузить новый файл</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const progressFill = document.getElementById('progressFill');
+        const statusText = document.getElementById('statusText');
+        const resultSection = document.getElementById('resultSection');
+        const downloadLink = document.getElementById('downloadLink');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Drag and drop events
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // Validate file type
+            const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+                              'application/vnd.ms-excel'];
+            const validExtensions = ['.xlsx', '.xls'];
+            const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+            if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
+                showError('Пожалуйста, выберите файл Excel (.xlsx или .xls)');
+                return;
+            }
+
+            // Hide previous results
+            resultSection.classList.remove('show');
+            errorMessage.classList.remove('show');
+
+            // Show file info
+            fileName.textContent = `📄 ${file.name}`;
+            fileInfo.classList.add('show');
+            progressFill.style.width = '0%';
+            statusText.textContent = 'Загрузка...';
+
+            // Upload file
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressFill.style.width = percentComplete + '%';
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    statusText.textContent = '✅ Обработка завершена!';
+                    progressFill.style.width = '100%';
+                    
+                    setTimeout(() => {
+                        fileInfo.classList.remove('show');
+                        resultSection.classList.add('show');
+                        downloadLink.href = response.download_url;
+                    }, 500);
+                } else {
+                    const response = JSON.parse(xhr.responseText);
+                    showError(response.error || 'Произошла ошибка при обработке файла');
+                    fileInfo.classList.remove('show');
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                showError('Ошибка сети. Проверьте подключение и попробуйте снова.');
+                fileInfo.classList.remove('show');
+            });
+
+            xhr.open('POST', '/upload');
+            xhr.send(formData);
+        }
+
+        function showError(message) {
+            errorMessage.textContent = '❌ ' + message;
+            errorMessage.classList.add('show');
+        }
+
+        function resetForm() {
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            resultSection.classList.remove('show');
+            errorMessage.classList.remove('show');
+            progressFill.style.width = '0%';
+        }
+    </script>
+</body>
+</html>

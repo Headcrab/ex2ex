@@ -1,0 +1,123 @@
+# Пример 1: Простое копирование данных
+output_filename: "simple_report.xlsx"
+
+mappings:
+  - source: "Data!A1"
+    destination: "Summary!A1"
+  
+  - source: "Data!B5:D10"
+    destination: "Summary!A3"
+
+output_sheets:
+  - name: "Summary"
+    create_if_not_exists: true
+
+---
+
+# Пример 2: Консолидация данных из нескольких листов
+output_filename: "consolidated_report.xlsx"
+
+mappings:
+  # Заголовки
+  - source: "January!A1:E1"
+    destination: "Annual!A1"
+  
+  # Данные за январь
+  - source: "January!A2:E50"
+    destination: "Annual!A2"
+  
+  # Данные за февраль
+  - source: "February!A2:E50"
+    destination: "Annual!A52"
+  
+  # Данные за март
+  - source: "March!A2:E50"
+    destination: "Annual!A102"
+
+output_sheets:
+  - name: "Annual"
+    create_if_not_exists: true
+
+---
+
+# Пример 3: Создание отчета с множественными секциями
+output_filename: "multi_section_report.xlsx"
+
+mappings:
+  # Секция 1: Заголовок
+  - source: "Source!A1"
+    destination: "Report!A1"
+  
+  # Секция 2: Финансовые показатели
+  - source: "Finance!A1:F20"
+    destination: "Report!A3"
+  
+  # Секция 3: Операционные показатели
+  - source: "Operations!A1:F20"
+    destination: "Report!A25"
+  
+  # Секция 4: Итоги
+  - source: "Summary!A1:C5"
+    destination: "Report!A47"
+
+output_sheets:
+  - name: "Report"
+    create_if_not_exists: true
+
+---
+
+# Пример 4: Трансформация с изменением структуры
+output_filename: "transformed_data.xlsx"
+
+mappings:
+  # Копирование заголовков
+  - source: "RawData!A1"
+    destination: "Processed!A1"
+  
+  - source: "RawData!B1"
+    destination: "Processed!C1"
+  
+  - source: "RawData!C1"
+    destination: "Processed!B1"
+  
+  # Копирование данных с изменением порядка колонок
+  - source: "RawData!A2:A100"
+    destination: "Processed!A2"
+  
+  - source: "RawData!B2:B100"
+    destination: "Processed!C2"
+  
+  - source: "RawData!C2:C100"
+    destination: "Processed!B2"
+
+output_sheets:
+  - name: "Processed"
+    create_if_not_exists: true
+
+---
+
+# Пример 5: Создание сводного отчета с разных листов
+output_filename: "executive_summary.xlsx"
+
+mappings:
+  # Основные метрики
+  - source: "Dashboard!B5"
+    destination: "Summary!B2"
+  
+  - source: "Dashboard!B6"
+    destination: "Summary!B3"
+  
+  - source: "Dashboard!B7"
+    destination: "Summary!B4"
+  
+  # Детальная таблица
+  - source: "Details!A1:G50"
+    destination: "Summary!A10"
+  
+  # График данных
+  - source: "Charts!A1:D20"
+    destination: "Summary!I2"
+
+output_sheets:
+  - name: "Summary"
+    create_if_not_exists: true

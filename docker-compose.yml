@@ -1,0 +1,26 @@
+services:
+  ex2ex:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ex2ex-app
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - UPLOAD_DIR=/app/uploads
+      - OUTPUT_DIR=/app/output
+      - CONFIG_FILE=/app/config.yaml
+    volumes:
+      # Mount config file for easy editing without rebuild
+      - ./config.yaml:/app/config.yaml:ro
+      # Persist uploads and outputs
+      - ./uploads:/app/uploads
+      - ./output:/app/output
+    restart: unless-stopped
+    networks:
+      - ex2ex-network
+
+networks:
+  ex2ex-network:
+    driver: bridge

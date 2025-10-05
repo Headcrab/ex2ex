@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Тест парсера YAML</title>
+</head>
+<body>
+    <h1>Тест парсера YAML для диапазонов</h1>
+    <pre id="result"></pre>
+
+    <script>
+        function parseYAML(yamlText) {
+            const lines = yamlText.split('\n');
+            const config = {
+                output_filename: '',
+                mappings: [],
+                output_sheets: []
+            };
+            
+            let currentSection = null;
+            let currentItem = null;
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                
+                if (trimmed.startsWith('output_filename:')) {
+                    config.output_filename = trimmed.substring('output_filename:'.length).trim().replace(/['"]/g, '');
+                } else if (trimmed === 'mappings:') {
+                    currentSection = 'mappings';
+                } else if (trimmed === 'output_sheets:') {
+                    currentSection = 'sheets';
+                } else if (trimmed.startsWith('- source:') && currentSection === 'mappings') {
+                    const sourceValue = trimmed.substring('- source:'.length).trim().replace(/['"]/g, '');
+                    currentItem = { source: sourceValue };
+                } else if (trimmed.startsWith('destination:') && currentItem && currentSection === 'mappings') {
+                    currentItem.destination = trimmed.substring('destination:'.length).trim().replace(/['"]/g, '');
+                    config.mappings.push(currentItem);
+                    currentItem = null;
+                } else if (trimmed.startsWith('- name:') && currentSection === 'sheets') {
+                    currentItem = { name: trimmed.substring('- name:'.length).trim().replace(/['"]/g, '') };
+                } else if (trimmed.startsWith('create_if_not_exists:') && currentItem && currentSection === 'sheets') {
+                    currentItem.create_if_not_exists = trimmed.substring('create_if_not_exists:'.length).trim() === 'true';
+                    config.output_sheets.push(currentItem);
+                    currentItem = null;
+                }
+            });
+            
+            return config;
+        }
+
+        // Тестовый YAML с диапазонами
+        const testYAML = `output_filename: "result.xlsx"
+
+mappings:
+  - source: "Лист1!A1"
+    destination: "Результат Лист1!A1"
+  - source: "Лист1!B2:K21"
+    destination: "Результат Лист2!A1"
+  - source: "Sheet1!A1:Z100"
+    destination: "Output!C5"
+
+output_sheets:
+  - name: "Результат Лист1"
+    create_if_not_exists: true
+  - name: "Результат Лист2"
+    create_if_not_exists: true`;
+
+        const parsed = parseYAML(testYAML);
+        
+        let output = 'Результат парсинга:\n\n';
+        output += `output_filename: ${parsed.output_filename}\n\n`;
+        output += 'Mappings:\n';
+        parsed.mappings.forEach((m, i) => {
+            output += `  ${i + 1}. source: "${m.source}"\n`;
+            output += `     destination: "${m.destination}"\n`;
+            
+            // Проверка на наличие двоеточия в source (диапазон)
+            if (m.source.includes(':') && !m.source.endsWith(':')) {
+                const parts = m.source.split('!');
+                if (parts.length > 1 && parts[1].includes(':')) {
+                    output += `     ✓ Диапазон сохранен правильно!\n`;
+                }
+            }
+        });
+        
+        output += '\nOutput Sheets:\n';
+        parsed.output_sheets.forEach((s, i) => {
+            output += `  ${i + 1}. name: "${s.name}"\n`;
+            output += `     create_if_not_exists: ${s.create_if_not_exists}\n`;
+        });
+
+        document.getElementById('result').textContent = output;
+        console.log('Parsed config:', parsed);
+    </script>
+</body>
+</html>
