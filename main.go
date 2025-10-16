@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -39,11 +40,44 @@ type Response struct {
 	Error       string `json:"error,omitempty"`
 }
 
+// Validate checks if the configuration is valid
+func (c *Config) Validate() error {
+	if c.OutputFilename == "" {
+		return fmt.Errorf("output_filename is required")
+	}
+
+	if len(c.Mappings) == 0 {
+		return fmt.Errorf("at least one mapping is required")
+	}
+
+	for i, m := range c.Mappings {
+		if m.Source == "" {
+			return fmt.Errorf("mapping %d: source is required", i)
+		}
+		if m.Destination == "" {
+			return fmt.Errorf("mapping %d: destination is required", i)
+		}
+	}
+
+	for i, sheet := range c.OutputSheets {
+		if sheet.CreateIfNotExists {
+			if err := validateSheetName(sheet.Name); err != nil {
+				return fmt.Errorf("output_sheet %d: %w", i, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 var (
-	uploadDir  string
-	outputDir  string
-	configFile string
-	port       string
+	uploadDir     string
+	outputDir     string
+	configFile    string
+	port          string
+	configMutex   sync.RWMutex
+	cachedConfig  *Config
+	configLastMod time.Time
 )
 
 func init() {
@@ -77,6 +111,10 @@ func main() {
 
 	// Wrap with logging
 	handler := loggingMiddleware(loggedMux)
+
+	// Start cleanup goroutine for old files (24 hours retention)
+	go startCleanupRoutine(outputDir, 24)
+	go startCleanupRoutine(uploadDir, 24)
 
 	log.Printf("Server starting on port %s...", port)
 	log.Printf("Open http://localhost:%s in your browser", port)
@@ -191,10 +229,18 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set max upload size limit (100 MB)
+	maxUploadSize := int64(100 << 20)
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+
 	// Parse multipart form
-	err := r.ParseMultipartForm(32 << 20) // 32 MB max
+	err := r.ParseMultipartForm(maxUploadSize)
 	if err != nil {
-		sendError(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
+		if err.Error() == "http: request body too large" {
+			sendError(w, "File size exceeds maximum limit of 100 MB", http.StatusBadRequest)
+		} else {
+			sendError(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 
@@ -252,6 +298,12 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	filename := filepath.Base(r.URL.Path)
 	filePath := filepath.Join(outputDir, filename)
 
+	// Security: prevent path traversal attacks
+	if !isPathSafe(filePath, outputDir) {
+		http.NotFound(w, r)
+		return
+	}
+
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		http.NotFound(w, r)
@@ -299,6 +351,11 @@ func processExcel(inputFilePath string) (string, error) {
 		// Create output sheets if needed
 		for _, sheet := range config.OutputSheets {
 			if sheet.CreateIfNotExists {
+				// Validate sheet name
+				if err := validateSheetName(sheet.Name); err != nil {
+					return "", fmt.Errorf("invalid sheet name: %w", err)
+				}
+
 				index, err := destFile.NewSheet(sheet.Name)
 				if err != nil {
 					return "", fmt.Errorf("failed to create sheet %s: %w", sheet.Name, err)
@@ -634,6 +691,21 @@ func matchesMask(value, mask string) bool {
 }
 
 func loadConfig(configPath string) (*Config, error) {
+	// Check if file was modified
+	info, err := os.Stat(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	configMutex.RLock()
+	// If cache exists and file hasn't been modified, return cached version
+	if cachedConfig != nil && info.ModTime() == configLastMod {
+		defer configMutex.RUnlock()
+		return cachedConfig, nil
+	}
+	configMutex.RUnlock()
+
+	// Load and parse config
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
@@ -643,6 +715,17 @@ func loadConfig(configPath string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
+
+	// Validate configuration
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+
+	// Update cache
+	configMutex.Lock()
+	cachedConfig = &config
+	configLastMod = info.ModTime()
+	configMutex.Unlock()
 
 	return &config, nil
 }
@@ -657,4 +740,95 @@ func sendError(w http.ResponseWriter, message string, statusCode int) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+// isPathSafe checks if the given path is within the baseDir to prevent path traversal attacks
+func isPathSafe(filePath, baseDir string) bool {
+	absPath, err1 := filepath.Abs(filePath)
+	absBase, err2 := filepath.Abs(baseDir)
+
+	if err1 != nil || err2 != nil {
+		return false
+	}
+
+	// Ensure baseDir ends with separator for proper comparison
+	if !filepath.HasPrefix(absPath, filepath.Clean(absBase)+string(os.PathSeparator)) &&
+		absPath != filepath.Clean(absBase) {
+		return false
+	}
+
+	return true
+}
+
+// validateSheetName checks if the sheet name is valid for Excel
+// Sheet names must be 1-31 characters and cannot contain: [ ] : * ? / \
+func validateSheetName(name string) error {
+	if name == "" {
+		return fmt.Errorf("sheet name cannot be empty")
+	}
+
+	if len(name) > 31 {
+		return fmt.Errorf("sheet name cannot exceed 31 characters, got %d", len(name))
+	}
+
+	invalidChars := []rune{'[', ']', ':', '*', '?', '/', '\\'}
+	for _, char := range name {
+		for _, invalid := range invalidChars {
+			if char == invalid {
+				return fmt.Errorf("sheet name contains invalid character: '%c'", char)
+			}
+		}
+	}
+
+	return nil
+}
+
+// startCleanupRoutine starts a background goroutine that deletes files older than maxAgeHours
+func startCleanupRoutine(dir string, maxAgeHours int) {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		cleanupOldFiles(dir, maxAgeHours)
+	}
+}
+
+// cleanupOldFiles removes files older than maxAgeHours from the directory
+func cleanupOldFiles(dir string, maxAgeHours int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Printf("Error reading directory for cleanup: %v", err)
+		return
+	}
+
+	now := time.Now()
+	maxAge := time.Duration(maxAgeHours) * time.Hour
+	deletedCount := 0
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			log.Printf("Error getting file info: %v", err)
+			continue
+		}
+
+		age := now.Sub(info.ModTime())
+		if age > maxAge {
+			filePath := filepath.Join(dir, entry.Name())
+			if err := os.Remove(filePath); err != nil {
+				log.Printf("Error deleting old file %s: %v", filePath, err)
+			} else {
+				log.Printf("Cleaned up old file: %s (age: %v)", filePath, age)
+				deletedCount++
+			}
+		}
+	}
+
+	if deletedCount > 0 {
+		log.Printf("Cleanup complete: deleted %d old files from %s", deletedCount, dir)
+	}
 }
