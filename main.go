@@ -22,8 +22,10 @@ type Config struct {
 }
 
 type Mapping struct {
-	Source      string `yaml:"source" json:"source"`
-	Destination string `yaml:"destination" json:"destination"`
+	Source       string `yaml:"source" json:"source"`
+	Destination  string `yaml:"destination" json:"destination"`
+	FilterColumn string `yaml:"filter_column,omitempty" json:"filter_column,omitempty"`
+	FilterMask   string `yaml:"filter_mask,omitempty" json:"filter_mask,omitempty"`
 }
 
 type OutputSheet struct {
@@ -278,28 +280,42 @@ func processExcel(inputFilePath string) (string, error) {
 	}
 	defer sourceFile.Close()
 
-	// Create new Excel file for output
-	destFile := excelize.NewFile()
-	defer destFile.Close()
+	// Check if template file exists in templates folder
+	templatePath := filepath.Join("./templates", config.OutputFilename)
+	var destFile *excelize.File
 
-	// Create output sheets if needed
-	for _, sheet := range config.OutputSheets {
-		if sheet.CreateIfNotExists {
-			index, err := destFile.NewSheet(sheet.Name)
-			if err != nil {
-				return "", fmt.Errorf("failed to create sheet %s: %w", sheet.Name, err)
-			}
-			// Set as active sheet if it's the first one
-			if index == 1 {
-				destFile.SetActiveSheet(index)
+	if _, err := os.Stat(templatePath); err == nil {
+		// Template exists - use it as base
+		log.Printf("Using template file: %s", templatePath)
+		destFile, err = excelize.OpenFile(templatePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to open template file: %w", err)
+		}
+	} else {
+		// No template - create new file
+		log.Printf("No template found, creating new file")
+		destFile = excelize.NewFile()
+
+		// Create output sheets if needed
+		for _, sheet := range config.OutputSheets {
+			if sheet.CreateIfNotExists {
+				index, err := destFile.NewSheet(sheet.Name)
+				if err != nil {
+					return "", fmt.Errorf("failed to create sheet %s: %w", sheet.Name, err)
+				}
+				// Set as active sheet if it's the first one
+				if index == 1 {
+					destFile.SetActiveSheet(index)
+				}
 			}
 		}
-	}
 
-	// Delete default Sheet1 if we created custom sheets
-	if len(config.OutputSheets) > 0 {
-		destFile.DeleteSheet("Sheet1")
+		// Delete default Sheet1 if we created custom sheets
+		if len(config.OutputSheets) > 0 {
+			destFile.DeleteSheet("Sheet1")
+		}
 	}
+	defer destFile.Close()
 
 	// Apply mappings
 	for _, mapping := range config.Mappings {
@@ -328,7 +344,7 @@ func applyMapping(sourceFile, destFile *excelize.File, mapping Mapping) error {
 
 	// Check if source is a range or single cell
 	if isRange(sourceRange) {
-		return copyRange(sourceFile, destFile, sourceSheet, sourceRange, destSheet, destCell)
+		return copyRange(sourceFile, destFile, sourceSheet, sourceRange, destSheet, destCell, mapping.FilterColumn, mapping.FilterMask)
 	}
 	return copyCellValue(sourceFile, destFile, sourceSheet, sourceRange, destSheet, destCell)
 }
@@ -419,7 +435,7 @@ func copyCellValue(sourceFile, destFile *excelize.File, sourceSheet, sourceCell,
 	return nil
 }
 
-func copyRange(sourceFile, destFile *excelize.File, sourceSheet, sourceRange, destSheet, destCell string) error {
+func copyRange(sourceFile, destFile *excelize.File, sourceSheet, sourceRange, destSheet, destCell, filterColumn, filterMask string) error {
 	// Get rows from source range
 	rows, err := sourceFile.GetRows(sourceSheet)
 	if err != nil {
@@ -438,13 +454,39 @@ func copyRange(sourceFile, destFile *excelize.File, sourceSheet, sourceRange, de
 		return fmt.Errorf("failed to parse destination cell: %w", err)
 	}
 
-	// Copy data
+	// Parse filter column if specified (e.g., "B" -> column 2)
+	var filterColNum int
+	if filterColumn != "" {
+		filterColNum, _, err = excelize.CellNameToCoordinates(filterColumn + "1")
+		if err != nil {
+			return fmt.Errorf("failed to parse filter column: %w", err)
+		}
+	}
+
+	// Copy data with filtering
 	rowOffset := 0
 	for r := startRow; r <= endRow && r <= len(rows); r++ {
 		if r > len(rows) {
 			break
 		}
 		row := rows[r-1]
+
+		// Apply filter if specified
+		if filterColumn != "" && filterMask != "" {
+			// Get value from filter column
+			if filterColNum > len(row) {
+				continue // skip row if filter column doesn't exist
+			}
+			filterValue := ""
+			if filterColNum <= len(row) {
+				filterValue = row[filterColNum-1]
+			}
+
+			// Check if value matches mask
+			if !matchesMask(filterValue, filterMask) {
+				continue // skip this row
+			}
+		}
 
 		colOffset := 0
 		for c := startCol; c <= endCol && c <= len(row); c++ {
@@ -525,6 +567,70 @@ func parseRangeCoords(rangeRef string) (startCol, startRow, endCol, endRow int, 
 	}
 
 	return startCol, startRow, endCol, endRow, nil
+}
+
+// matchesMask checks if a string matches a pattern with wildcards (*)
+// Example: matchesMask("abc123", "*3*") returns true
+func matchesMask(value, mask string) bool {
+	if mask == "" {
+		return true // empty mask matches everything
+	}
+
+	// Split mask by wildcards
+	parts := []string{}
+	current := ""
+	for _, char := range mask {
+		if char == '*' {
+			if current != "" {
+				parts = append(parts, current)
+				current = ""
+			}
+		} else {
+			current += string(char)
+		}
+	}
+	if current != "" {
+		parts = append(parts, current)
+	}
+
+	// If no wildcards, do exact match
+	if len(parts) == 0 {
+		return true
+	}
+	if len(parts) == 1 && mask[0] != '*' && mask[len(mask)-1] != '*' {
+		return value == mask
+	}
+
+	// Check if all parts exist in order
+	position := 0
+	for _, part := range parts {
+		index := -1
+		for i := position; i <= len(value)-len(part); i++ {
+			if value[i:i+len(part)] == part {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			return false
+		}
+		position = index + len(part)
+	}
+
+	// Check prefix and suffix
+	if len(mask) > 0 && mask[0] != '*' && len(parts) > 0 {
+		if len(value) < len(parts[0]) || value[:len(parts[0])] != parts[0] {
+			return false
+		}
+	}
+	if len(mask) > 0 && mask[len(mask)-1] != '*' && len(parts) > 0 {
+		lastPart := parts[len(parts)-1]
+		if len(value) < len(lastPart) || value[len(value)-len(lastPart):] != lastPart {
+			return false
+		}
+	}
+
+	return true
 }
 
 func loadConfig(configPath string) (*Config, error) {

@@ -12,8 +12,8 @@ services:
       - OUTPUT_DIR=/app/output
       - CONFIG_FILE=/app/config.yaml
     volumes:
-      # Mount config file for easy editing without rebuild
-      - ./config.yaml:/app/config.yaml:ro
+      # Mount config file for easy editing without rebuild (read-write for admin panel)
+      - ./config.yaml:/app/config.yaml
       # Persist uploads and outputs
       - ./uploads:/app/uploads
       - ./output:/app/output

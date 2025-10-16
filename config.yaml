@@ -1,16 +1,10 @@
 # Конфигурация для трансформации Excel файлов
-output_filename: Отчет.xlsx
+output_filename: репорт.xlsx
 mappings:
-    - source: Лист1!A1
+    - source: Worksheet!A1:H100000
       destination: Результат Лист1!A1
-    - source: Лист1!B2
-      destination: Результат Лист1!B2
-    - source: Лист1!B2:K21
-      destination: Результат Лист2!A1
-    - source: Лист1!M2:M21
-      destination: Результат Лист1!K5
+      filter_column: A
+      filter_mask: ПСА*
 output_sheets:
     - name: Результат Лист1
       create_if_not_exists: true
-    - name: Результат Лист2
-      create_if_not_exists: false

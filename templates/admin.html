@@ -514,6 +514,16 @@
                         <input type="text" id="mapping-dest-${id}" placeholder="Result!A1" value="${mapping?.destination || ''}">
                         <div class="help-text">Например: Result!A1</div>
                     </div>
+                    <div class="form-group">
+                        <label>Столбец фильтрации (опционально):</label>
+                        <input type="text" id="mapping-filtercol-${id}" placeholder="B" value="${mapping?.filter_column || ''}">
+                        <div class="help-text">Буква столбца для фильтрации (например: B)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Маска фильтра (опционально):</label>
+                        <input type="text" id="mapping-filtermask-${id}" placeholder="*3*" value="${mapping?.filter_mask || ''}">
+                        <div class="help-text">Маска с wildcards: *3* копирует строки, где есть цифра 3</div>
+                    </div>
                 </div>
             `;
             
@@ -568,16 +578,24 @@
 
             // Collect mappings
             document.querySelectorAll('[id^="mapping-"]').forEach(item => {
-                if (!item.id.includes('source') && !item.id.includes('dest')) {
+                if (!item.id.includes('source') && !item.id.includes('dest') && !item.id.includes('filtercol') && !item.id.includes('filtermask')) {
                     const id = item.id.split('-')[1];
                     const source = document.getElementById(`mapping-source-${id}`)?.value;
                     const dest = document.getElementById(`mapping-dest-${id}`)?.value;
+                    const filterCol = document.getElementById(`mapping-filtercol-${id}`)?.value;
+                    const filterMask = document.getElementById(`mapping-filtermask-${id}`)?.value;
                     
                     if (source && dest) {
-                        config.mappings.push({
+                        const mapping = {
                             source: source,
                             destination: dest
-                        });
+                        };
+                        
+                        // Add filter fields if they are not empty
+                        if (filterCol) mapping.filter_column = filterCol;
+                        if (filterMask) mapping.filter_mask = filterMask;
+                        
+                        config.mappings.push(mapping);
                     }
                 }
             });
@@ -697,6 +715,12 @@
                 config.mappings.forEach(m => {
                     yaml += `  - source: "${m.source}"\n`;
                     yaml += `    destination: "${m.destination}"\n`;
+                    if (m.filter_column) {
+                        yaml += `    filter_column: "${m.filter_column}"\n`;
+                    }
+                    if (m.filter_mask) {
+                        yaml += `    filter_mask: "${m.filter_mask}"\n`;
+                    }
                 });
             }
             
@@ -740,6 +764,19 @@
                 } else if (trimmed.startsWith('destination:') && currentItem && currentSection === 'mappings') {
                     // Берем все после "destination:"
                     currentItem.destination = trimmed.substring('destination:'.length).trim().replace(/['"]/g, '');
+                } else if (trimmed.startsWith('filter_column:') && currentItem && currentSection === 'mappings') {
+                    // Берем столбец фильтрации
+                    currentItem.filter_column = trimmed.substring('filter_column:'.length).trim().replace(/['"]/g, '');
+                } else if (trimmed.startsWith('filter_mask:') && currentItem && currentSection === 'mappings') {
+                    // Берем маску фильтра
+                    currentItem.filter_mask = trimmed.substring('filter_mask:'.length).trim().replace(/['"]/g, '');
+                    // Если есть destination, добавляем mapping
+                    if (currentItem.destination) {
+                        config.mappings.push(currentItem);
+                        currentItem = null;
+                    }
+                } else if (currentItem && currentSection === 'mappings' && currentItem.destination && !trimmed.startsWith('filter')) {
+                    // Если уже есть destination и встретили новую строку - добавляем mapping
                     config.mappings.push(currentItem);
                     currentItem = null;
                 } else if (trimmed.startsWith('- name:') && currentSection === 'sheets') {

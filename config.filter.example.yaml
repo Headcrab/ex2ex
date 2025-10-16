@@ -1,0 +1,25 @@
+# Пример конфигурации с фильтрацией строк
+output_filename: filtered_report.xlsx
+
+mappings:
+  # Копирование всех строк из диапазона B2:K21, где в столбце B есть цифра 3
+  - source: "Лист1!B2:K21"
+    destination: "Результат!A1"
+    filter_column: "B"
+    filter_mask: "*3*"
+
+  # Копирование без фильтра
+  - source: "Лист1!A1"
+    destination: "Результат!M1"
+
+  # Ещё один пример с фильтром - строки, начинающиеся с "Product"
+  - source: "Лист2!A1:D100"
+    destination: "Фильтр по продуктам!A1"
+    filter_column: "A"
+    filter_mask: "Product*"
+
+output_sheets:
+  - name: "Результат"
+    create_if_not_exists: true
+  - name: "Фильтр по продуктам"
+    create_if_not_exists: true
